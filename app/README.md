@@ -1,16 +1,118 @@
-# React + Vite
+# Kitchen Chemistry: High fidelity prototype
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A high-fidelity prototype of an AR cooking app that explains the food science
+happening in the pan. There is no computer vision or speech recognition. A
+researcher (the "wizard") watches the cooking, listens to the participant, and
+triggers the labels from a laptop.
 
-Currently, two official plugins are available:
+| Screen | Device | Path | What it does |
+| --- | --- | --- | --- |
+| Participant display | Phone or tablet, in Chrome | `/display` | Live rear camera (or a filmed clip) with labels on top |
+| Wizard console | Laptop | `/console` | Picks moments, shows and hides labels, controls the video |
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Set up
 
-## React Compiler
+You need Node 20.19+ or 22.12+, and both devices on the same Wi-Fi network.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```sh
+npm install
+npm run dev
+```
 
-## Expanding the Oxlint configuration
+This starts the web app (port 5173) and the relay that connects the two screens
+(port 3001). Leave it running for the whole session.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+The terminal prints a `Network:` address such as `https://192.168.0.83:5173/`.
+It can change between networks, so check it each time.
+
+## Before the participant arrives
+
+1. On the laptop, open `https://localhost:5173/console`.
+2. On the phone or tablet, open `https://<network-address>:5173/display`.
+   Use **https**, because the camera does not work without it.
+3. The certificate is self-signed, so each device shows a warning. In Chrome
+   choose **Advanced**, then **Proceed**.
+4. On the phone or tablet, press **Tap to start** and allow the camera. The page
+   also tries to go full screen and keep the screen awake.
+5. Check the console says **Relay connected** and **Displays: 1**.
+6. Press **Reset session** so the recap starts empty.
+
+Repeat steps 4–6 for each participant (reload the display if it is already open).
+The console preview shows the labels but not the camera picture,
+so the wizard needs to see the pan directly.
+
+## Running a session
+
+Choose a moment, then fire a stage for it. Shortcuts work while the console page
+has focus.
+
+| Key | Action | When to use it |
+| --- | --- | --- |
+| `1`–`4` | Select a moment (nothing is shown yet) | Before firing a stage |
+| `G` | Glance label | The change is happening in the pan |
+| `W` | Why card | The participant says "why?" |
+| `M` | More card | The participant says "more" |
+| `H` | Heads-up | The change is about to happen |
+| `R` | Recap | After cooking |
+| `Esc` | Clear | Remove whatever is on screen |
+| `Space` | Play or pause | Filmed clips only |
+
+- **Placing a label:** click in the preview, or use a preset such as
+  **Back left**. The label stays at that point on the *screen*. It does not
+  follow the food if the phone or the pan moves, so prop the phone up and
+  reposition the label when needed.
+- **Recap:** lists only moments shown as a glance label since the last reset.
+- **Reset session:** clears the label, its position and the recap. It keeps the
+  camera or clip mode, but goes back to the first clip.
+
+## Camera and filmed clips
+
+The display starts in **Live camera** mode. Switch under **Video** on the
+console. The app does not record or save the camera picture.
+
+For **Filmed clip** mode, put video files in `public/clips/`. The expected names
+are listed in `clips` in `src/moments.js`: `onions.mp4`, `garlic.mp4`, `egg.mp4`
+and `sauce.mp4`.
+
+## Session logs
+
+Each time the relay starts it creates `logs/session-<time>.jsonl`, with one
+timestamped entry per wizard command, connection and display event. Times are in
+UTC.
+
+- Logs have no participant ID. Note which file belongs to which participant, and
+  restart `npm run dev` between participants to get a separate file for each.
+- Do not edit `server/index.js` during a session. Saving it restarts the relay,
+  which clears the session and starts a new log.
+- `logs/` is git-ignored, so back the files up separately.
+
+## Changing the content
+
+The moments and their wording are in `src/moments.js`. **The current text is
+placeholder:** check every explanation against a food-science source before
+testing with participants.
+
+## Troubleshooting
+
+| Problem | Try |
+| --- | --- |
+| Phone cannot open the page | Check it is on the same Wi-Fi and the address is current. University Wi-Fi may block devices from reaching each other; try a phone hotspot. Check the laptop's firewall. |
+| "Camera unavailable" | Use `https://`. In Chrome, tap the icon left of the address, then **Permissions**, allow the camera and reload. |
+| "Clip not found" | Add the file to `public/clips/`, or switch to **Live camera**. |
+| "Reconnecting…" or **Relay offline** | Check `npm run dev` is still running. Don't press anything on the console until it reconnects: commands are queued and all fire at once. |
+| Port already in use | Another copy is probably running. Stop it and start again. |
+
+## Code layout
+
+| File | Purpose |
+| --- | --- |
+| `src/Display.jsx` | Participant display, camera and clips |
+| `src/Console.jsx` | Wizard console and shortcuts |
+| `src/Overlay.jsx` | Labels, cards and recap, shared by both screens |
+| `src/moments.js` | Moments, wording and clip names |
+| `src/useSession.js` | Connection to the relay |
+| `server/index.js` | Relay, shared state and logging |
+| `vite.config.js` | HTTPS and the proxy to the relay |
+
+Run `npm run lint` to check the code. Use `npm run dev` for sessions:
+`npm run build` and `npm run preview` are not set up for running one.
