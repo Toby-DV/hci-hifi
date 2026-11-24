@@ -19,25 +19,61 @@ const PRESETS = [
   { name: 'Centre', x: 50, y: 55 },
 ]
 
+const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }
+
+const clamp = (n) => Math.min(100, Math.max(0, n))
+
+// One line for the header about the (first) connected display.
+function displayHealth(clients) {
+  if (clients.display === 0) return { ok: false, text: 'No display' }
+  if (clients.display > 1) return { ok: false, text: `${clients.display} displays connected` }
+  const s = clients.displays?.[0]
+  if (!s) return { ok: false, text: 'Display connecting' }
+  if (!s.started) return { ok: false, text: 'Display: waiting for tap' }
+  if (s.camera === 'error') return { ok: false, text: `Camera error: ${s.error}` }
+  if (s.camera === 'starting') return { ok: false, text: 'Camera starting' }
+  return { ok: true, text: s.camera === 'on' ? 'Display ready · camera on' : 'Display ready · clip' }
+}
+
 // The wizard's screen (laptop). Pick a moment, then fire stages for it.
-// Keyboard: 1–4 pick moment, G/W/M/H/R fire a stage, Esc clears, Space play/pause.
+// Keyboard: 1–4 pick moment, G/W/M/H/R fire a stage, Esc clears, Space play/pause,
+// arrows nudge the label (Shift for bigger steps).
 export default function Console() {
   const { state, connected, clients, send } = useSession('console')
   const [selected, setSelected] = useState(moments[0].id)
 
   const fire = (stage) => send({ type: 'stage', stage, momentId: selected })
   const clear = () => send({ type: 'clear' })
+  useEffect(() => {
+    document.title = 'Wizard console'
+  }, [])
+
   const togglePlay = () => send({ type: 'video', playing: !state?.video.playing })
 
   useEffect(() => {
     function onKey(e) {
       if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT') return
+      // Leave browser shortcuts alone (Ctrl+R used to fire the recap).
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      const arrow = ARROWS[e.key]
+      if (arrow && state) {
+        e.preventDefault()
+        const step = e.shiftKey ? 10 : 2
+        return send({
+          type: 'position',
+          position: {
+            x: clamp(state.position.x + arrow[0] * step),
+            y: clamp(state.position.y + arrow[1] * step),
+          },
+        })
+      }
+      if (e.repeat) return // a held key should fire once
       const n = Number(e.key)
       if (n >= 1 && n <= moments.length) return setSelected(moments[n - 1].id)
       const s = STAGES.find((s) => s.key === e.key.toLowerCase())
       if (s) return fire(s.stage)
       if (e.key === 'Escape') return clear()
-      if (e.key === ' ') {
+      if (e.key === ' ' && state?.video.source === 'clip' && e.target.tagName !== 'BUTTON') {
         e.preventDefault()
         togglePlay()
       }
@@ -58,19 +94,29 @@ export default function Console() {
     })
   }
 
+  // After a mouse click, drop focus so Space or Enter can't press it again.
+  function dropFocus(e) {
+    if (e.detail > 0) e.target.closest('button')?.blur()
+  }
+
   if (!state) return <div className="console loading">Connecting to relay…</div>
 
+  const health = displayHealth(clients)
+  const aspect = clients.displays?.[0]?.aspect || 16 / 9
+  const liveId = ['idle', 'recap'].includes(state.stage) ? null : state.momentId
+
   return (
-    <div className="console">
+    <div className="console" onClick={dropFocus}>
       <header>
         <h1>Wizard console</h1>
         <span className={`conn ${connected ? 'ok' : 'bad'}`}>
           {connected ? 'Relay connected' : 'Relay offline'}
         </span>
-        <span className={`conn ${clients.display > 0 ? 'ok' : 'bad'}`}>
-          Displays: {clients.display}
-        </span>
+        <span className={`conn ${health.ok ? 'ok' : 'bad'}`}>{health.text}</span>
       </header>
+      {!connected && (
+        <p className="banner">Relay offline. Nothing you press is being sent.</p>
+      )}
 
       <section>
         <h2>Moment</h2>
@@ -82,6 +128,11 @@ export default function Console() {
               onClick={() => setSelected(m.id)}
             >
               <kbd>{i + 1}</kbd> {m.label}
+              {m.id === liveId ? (
+                <span className="tag on">on screen</span>
+              ) : (
+                state.seen.includes(m.id) && <span className="tag">✓ shown</span>
+              )}
             </button>
           ))}
         </div>
@@ -106,8 +157,13 @@ export default function Console() {
       </section>
 
       <section className="preview-section">
-        <h2>Participant sees · click to place label</h2>
-        <div className="preview" onClick={placeLabel}>
+        <h2>Participant sees · click to place label, arrows to nudge</h2>
+        <div
+          className="preview"
+          onClick={placeLabel}
+          // Same shape as the participant's screen, so labels land where you click.
+          style={{ aspectRatio: aspect, width: `min(100%, 720px, ${60 * aspect}vh)` }}
+        >
           <Overlay state={state} />
         </div>
         <div className="row">
@@ -158,7 +214,7 @@ export default function Console() {
       <section>
         <button
           className="danger"
-          onClick={() => confirm('Reset the session (clears the recap)?') && send({ type: 'reset' })}
+          onClick={() => confirm('Reset the session (clears the screen and recap)?') && send({ type: 'reset' })}
         >
           Reset session
         </button>

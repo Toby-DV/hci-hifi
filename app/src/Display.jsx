@@ -6,10 +6,13 @@ import { useSession } from './useSession.js'
 // cooking clip or the device's live rear camera, full screen, with the overlay
 // on top. Controlled entirely from /console.
 export default function Display() {
-  const { state, connected, report } = useSession('display')
+  const { state, connected, report, sendStatus } = useSession('display')
   const [started, setStarted] = useState(false)
   const [failedClip, setFailedClip] = useState(null)
   const [cameraError, setCameraError] = useState(null)
+  const [cameraOn, setCameraOn] = useState(false)
+  const [attempt, setAttempt] = useState(0) // bump to reopen the camera
+  const [aspect, setAspect] = useState(() => window.innerWidth / window.innerHeight)
   const videoRef = useRef(null)
   const cameraRef = useRef(null)
 
@@ -43,7 +46,14 @@ export default function Display() {
         })
         if (cancelled) return stream.getTracks().forEach((t) => t.stop())
         cameraRef.current.srcObject = stream
+        // The phone can take the camera away (a call, another app). Reopen it.
+        stream.getVideoTracks()[0].addEventListener('ended', () => {
+          report({ action: 'camera-lost' })
+          if (!document.hidden) setAttempt((n) => n + 1)
+        })
         await cameraRef.current.play().catch(() => {})
+        if (cancelled) return
+        setCameraOn(true)
         report({ action: 'camera-on' })
       } catch (err) {
         if (!cancelled) {
@@ -55,9 +65,40 @@ export default function Display() {
     return () => {
       cancelled = true
       setCameraError(null)
+      setCameraOn(false)
       stream?.getTracks().forEach((t) => t.stop())
     }
-  }, [useCamera, started]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [useCamera, started, attempt]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Coming back from another app or a locked screen: the wake lock is always
+  // released, and the camera may have been stopped.
+  useEffect(() => {
+    if (!started) return
+    const onVisible = () => {
+      if (document.hidden) return
+      navigator.wakeLock?.request('screen').catch(() => {})
+      const el = cameraRef.current
+      if (!el) return
+      const track = el.srcObject?.getVideoTracks()[0]
+      if (track && track.readyState === 'ended') setAttempt((n) => n + 1)
+      else el.play().catch(() => {})
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [started])
+
+  useEffect(() => {
+    document.title = 'Kitchen Chemistry'
+    const onResize = () => setAspect(window.innerWidth / window.innerHeight)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
+
+  // Tell the console how this display is doing.
+  const camera = !useCamera ? 'off' : cameraError ? 'error' : cameraOn ? 'on' : 'starting'
+  useEffect(() => {
+    if (connected) sendStatus({ started, camera, error: cameraError, aspect })
+  }, [connected, started, camera, cameraError, aspect]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const videoError = video && !useCamera && failedClip === video.clip
 
@@ -68,6 +109,12 @@ export default function Display() {
       await document.documentElement.requestFullscreen()
     } catch {
       /* fine on desktop testing */
+    }
+    try {
+      // Android only, and only in full screen.
+      await screen.orientation.lock('landscape')
+    } catch {
+      /* the start screen asks for landscape instead */
     }
     try {
       await navigator.wakeLock?.request('screen')
@@ -99,7 +146,10 @@ export default function Display() {
         </div>
       )}
       {useCamera && cameraError && (
-        <div className="video-missing">Camera unavailable: {cameraError}</div>
+        <div className="video-missing">
+          <span>Camera unavailable: {cameraError}</span>
+          <button onClick={() => setAttempt((n) => n + 1)}>Try again</button>
+        </div>
       )}
 
       <Overlay state={state} />
@@ -108,7 +158,10 @@ export default function Display() {
 
       {!started && (
         <button className="start-screen" onClick={start}>
-          Tap to start
+          <span>
+            Tap to start
+            <small>Turn the screen sideways first</small>
+          </span>
         </button>
       )}
     </div>

@@ -32,12 +32,13 @@ It can change between networks, so check it each time.
    Use **https**, because the camera does not work without it.
 3. The certificate is self-signed, so each device shows a warning. In Chrome
    choose **Advanced**, then **Proceed**.
-4. On the phone or tablet, press **Tap to start** and allow the camera. The page
-   also tries to go full screen and keep the screen awake.
-5. Check the console says **Relay connected** and **Displays: 1**.
-6. Press **Reset session** so the recap starts empty.
+4. Turn the phone or tablet sideways, press **Tap to start** and allow the
+   camera. The page also tries to go full screen, lock to landscape and keep the
+   screen awake.
+5. Check the console header says **Relay connected** and **Display ready**.
+6. Press **Reset session** so the screen and recap start empty.
 
-Repeat steps 4–6 for each participant (reload the display if it is already open).
+Repeat steps 5 and 6 for each participant.
 The console preview shows the labels but not the camera picture,
 so the wizard needs to see the pan directly.
 
@@ -56,11 +57,14 @@ has focus.
 | `R` | Recap | After cooking |
 | `Esc` | Clear | Remove whatever is on screen |
 | `Space` | Play or pause | Filmed clips only |
+| Arrow keys | Nudge the label (`Shift` for bigger steps) | The label is off target |
 
 - **Placing a label:** click in the preview, or use a preset such as
   **Back left**. The label stays at that point on the *screen*. It does not
   follow the food if the phone or the pan moves, so prop the phone up and
   reposition the label when needed.
+- **Preview:** matches the shape of the participant's screen. A moment is marked
+  **on screen** while it is showing and **✓ shown** once it is in the recap.
 - **Recap:** lists only moments shown as a glance label since the last reset.
 - **Reset session:** clears the label, its position and the recap. It keeps the
   camera or clip mode, but goes back to the first clip.
@@ -80,10 +84,10 @@ Each time the relay starts it creates `logs/session-<time>.jsonl`, with one
 timestamped entry per wizard command, connection and display event. Times are in
 UTC.
 
-- Logs have no participant ID. Note which file belongs to which participant, and
-  restart `npm run dev` between participants to get a separate file for each.
-- Do not edit `server/index.js` during a session. Saving it restarts the relay,
-  which clears the session and starts a new log.
+- Logs do not say which participant they belong to. Restart `npm run dev` between
+  participants to get a separate file for each, and note which is whose.
+- Saving `server/index.js` restarts the relay, which clears the session and starts
+  a new log, so do not edit it during a session.
 - `logs/` is git-ignored, so back the files up separately.
 
 ## Changing the content
@@ -97,9 +101,10 @@ testing with participants.
 | Problem | Try |
 | --- | --- |
 | Phone cannot open the page | Check it is on the same Wi-Fi and the address is current. University Wi-Fi may block devices from reaching each other; try a phone hotspot. Check the laptop's firewall. |
-| "Camera unavailable" | Use `https://`. In Chrome, tap the icon left of the address, then **Permissions**, allow the camera and reload. |
+| "Camera unavailable" | Use `https://`. In Chrome, tap the icon left of the address, then **Permissions**, allow the camera, then press **Try again** on the display. |
 | "Clip not found" | Add the file to `public/clips/`, or switch to **Live camera**. |
-| "Reconnecting…" or **Relay offline** | Check `npm run dev` is still running. Don't press anything on the console until it reconnects: commands are queued and all fire at once. |
+| "Reconnecting…" or **Relay offline** | Check `npm run dev` is still running. Console presses are ignored until it reconnects, so press again afterwards. |
+| "2 displays connected" | Close the display page on the extra device or tab. |
 | Port already in use | Another copy is probably running. Stop it and start again. |
 
 ## Code layout

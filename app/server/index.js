@@ -65,8 +65,11 @@ const http = createServer()
 const io = new Server(http)
 
 function broadcastClients() {
-  const counts = { display: 0, console: 0 }
-  for (const s of io.sockets.sockets.values()) counts[s.data.role] = (counts[s.data.role] ?? 0) + 1
+  const counts = { display: 0, console: 0, displays: [] }
+  for (const s of io.sockets.sockets.values()) {
+    counts[s.data.role] = (counts[s.data.role] ?? 0) + 1
+    if (s.data.role === 'display') counts.displays.push(s.data.status ?? null)
+  }
   io.emit('clients', counts)
 }
 
@@ -84,6 +87,12 @@ io.on('connection', (socket) => {
 
   // The display reports participant taps etc. here (e.g. "tapped start").
   socket.on('report', (entry) => log({ event: 'report', role: socket.data.role, ...entry }))
+
+  // Display health (camera, screen shape) for the console. Not logged.
+  socket.on('status', (status) => {
+    socket.data.status = status
+    broadcastClients()
+  })
 
   socket.on('disconnect', () => {
     log({ event: 'disconnect', role: socket.data.role })
