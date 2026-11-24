@@ -1,0 +1,138 @@
+:root {
+  --label-bg: rgba(255, 255, 255, 0.94);
+  --label-text: #1b1b1b;
+  --accent: #f2a33a;
+  --heads-up: #ffd166;
+  --console-bg: #15171c;
+  --console-panel: #20232b;
+  --console-text: #e8e8ea;
+  --ok: #3ccf7a;
+  --bad: #ef5a5a;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; height: 100%; }
+body { background: #000; }
+
+/* ---------- Home ---------- */
+.home {
+  min-height: 100%; display: flex; flex-direction: column; gap: 12px;
+  align-items: center; justify-content: center; background: #fff; color: #111;
+}
+.home a { font-size: 1.2rem; }
+
+/* ---------- Participant display ---------- */
+.display { position: fixed; inset: 0; overflow: hidden; background: #111; }
+.display video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.video-missing {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  color: #777; font-size: 1rem;
+}
+.start-screen {
+  position: absolute; inset: 0; border: 0; background: #111; color: #fff;
+  font-size: 2rem; cursor: pointer;
+}
+.offline {
+  position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+  background: var(--bad); color: #fff; padding: 6px 14px; border-radius: 999px;
+}
+
+/* ---------- Overlay (shared by display and console preview) ---------- */
+/* Sizes use cqw so the console preview is a faithful scaled-down copy. */
+.overlay { position: absolute; inset: 0; container-type: size; pointer-events: none; }
+
+.status-bar {
+  position: absolute; top: 3cqh; left: 2.5cqw; right: 2.5cqw;
+  display: flex; justify-content: space-between;
+}
+.pill {
+  background: rgba(0, 0, 0, 0.55); color: #fff; border-radius: 999px;
+  padding: 0.6cqw 1.4cqw; font-size: 1.5cqw; display: inline-flex; align-items: center; gap: 0.6cqw;
+}
+.dot { width: 0.9cqw; height: 0.9cqw; border-radius: 50%; background: var(--ok); }
+.pill.hint { background: rgba(255, 255, 255, 0.85); color: #222; }
+
+.label {
+  position: absolute; transform: translate(-50%, -100%);
+  display: flex; flex-direction: column; align-items: center;
+  transition: left 0.3s ease, top 0.3s ease;
+  animation: pop-in 0.25s ease-out;
+}
+.label-box {
+  background: var(--label-bg); color: var(--label-text);
+  border-radius: 1.2cqw; padding: 1.1cqw 1.8cqw; max-width: 34cqw;
+  box-shadow: 0 0.4cqw 1.6cqw rgba(0, 0, 0, 0.35);
+}
+.label-title { font-size: 2.3cqw; font-weight: 650; }
+.label-sub { font-size: 1.6cqw; color: #555; margin-top: 0.2cqw; }
+.label-stem { width: 0.25cqw; height: 6cqh; background: var(--label-bg); }
+.label-pin {
+  width: 1.3cqw; height: 1.3cqw; border-radius: 50%;
+  background: var(--accent); border: 0.25cqw solid #fff;
+}
+.label.small .label-title { font-size: 1.6cqw; }
+.label.small .label-box { padding: 0.6cqw 1.2cqw; }
+.label.heads-up .label-box { background: var(--heads-up); }
+.label.heads-up .label-sub { color: #6b4e00; }
+
+.card {
+  position: absolute; right: 2.5cqw; bottom: 4cqh; width: 38cqw;
+  background: var(--label-bg); color: var(--label-text);
+  border-radius: 1.4cqw; padding: 1.8cqw 2.2cqw;
+  box-shadow: 0 0.4cqw 2cqw rgba(0, 0, 0, 0.4);
+  animation: slide-up 0.3s ease-out;
+}
+.card p { font-size: 2cqw; line-height: 1.4; margin: 0.6cqw 0; }
+.card-heard { font-size: 1.4cqw; color: #8a5a00; font-weight: 600; }
+.card-hint { font-size: 1.3cqw; color: #777; }
+
+.recap {
+  position: absolute; inset: 6cqh 8cqw; overflow: auto;
+  background: rgba(255, 255, 255, 0.96); color: #1b1b1b;
+  border-radius: 1.6cqw; padding: 3cqw; animation: slide-up 0.3s ease-out;
+}
+.recap h2 { margin: 0 0 1.5cqw; font-size: 3cqw; }
+.recap p, .recap li span { font-size: 1.7cqw; }
+.recap li { margin-bottom: 1.4cqw; font-size: 2cqw; }
+.recap li span { display: block; color: #444; margin-top: 0.3cqw; }
+.recap-count { font-size: 1.5cqw; color: #666; }
+
+@keyframes pop-in { from { opacity: 0; scale: 0.9; } to { opacity: 1; scale: 1; } }
+@keyframes slide-up { from { opacity: 0; translate: 0 2cqh; } to { opacity: 1; translate: 0 0; } }
+
+/* ---------- Wizard console ---------- */
+.console {
+  min-height: 100%; background: var(--console-bg); color: var(--console-text);
+  padding: 16px 24px 40px; max-width: 1100px; margin: 0 auto;
+}
+.console.loading { display: grid; place-items: center; }
+.console header { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.console h1 { font-size: 1.3rem; margin: 0 auto 0 0; }
+.console h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: #9a9ca5; margin: 22px 0 8px; }
+.conn { font-size: 0.8rem; padding: 3px 10px; border-radius: 999px; }
+.conn.ok { background: color-mix(in srgb, var(--ok) 25%, transparent); color: var(--ok); }
+.conn.bad { background: color-mix(in srgb, var(--bad) 25%, transparent); color: var(--bad); }
+
+.console .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.console .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.console button, .console select {
+  background: var(--console-panel); color: var(--console-text); border: 1px solid #333744;
+  border-radius: 8px; padding: 12px 14px; font-size: 0.95rem; text-align: left; cursor: pointer;
+}
+.console button:hover { border-color: #5a5f70; }
+.console button.selected { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, var(--console-panel)); }
+.console button.fire { font-weight: 600; }
+.console button.live { background: var(--accent); color: #1b1b1b; border-color: var(--accent); }
+.console button.clear { border-color: #555; }
+.console button.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 50%, transparent); }
+kbd {
+  font-family: ui-monospace, monospace; font-size: 0.75rem; padding: 1px 6px;
+  border-radius: 4px; background: #00000055; margin-right: 6px;
+}
+
+.preview {
+  position: relative; aspect-ratio: 16 / 9; width: 100%; max-width: 720px;
+  background: #2b2b2b; border-radius: 8px; overflow: hidden; cursor: crosshair;
+}
+.console .note { color: #9a9ca5; font-size: 0.85rem; margin: 8px 0 0; }
