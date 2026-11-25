@@ -104,6 +104,39 @@ body { background: #000; }
 @keyframes pop-in { from { opacity: 0; scale: 0.9; } to { opacity: 1; scale: 1; } }
 @keyframes slide-up { from { opacity: 0; translate: 0 2cqh; } to { opacity: 1; translate: 0 0; } }
 
+/* ---------- Instructions (display, and console preview) ---------- */
+.instructions { position: absolute; inset: 0; container-type: size; background: #fff; color: #1b1b1b; }
+.instructions-page {
+  --u: min(1cqw, 2.1cqh); /* scales with the screen, whichever side is tighter */
+  height: 100%; overflow: auto; padding: calc(3 * var(--u)) calc(5 * var(--u));
+  display: flex; flex-direction: column; justify-content: safe center; gap: calc(1.6 * var(--u));
+}
+.instructions h1 { margin: 0; font-size: calc(3.2 * var(--u)); }
+.instructions ol {
+  margin: 0; padding: 0; list-style: none; counter-reset: step;
+  display: grid; grid-template-columns: 1fr 1fr; gap: calc(1.4 * var(--u)) calc(3 * var(--u));
+}
+.instructions li { counter-increment: step; position: relative; padding-left: calc(4.4 * var(--u)); }
+.instructions li::before {
+  content: counter(step); position: absolute; left: 0; top: 0;
+  width: calc(3.2 * var(--u)); height: calc(3.2 * var(--u)); border-radius: 50%;
+  display: grid; place-items: center; background: var(--accent); font-weight: 650; font-size: calc(1.9 * var(--u));
+}
+.instructions strong { display: block; font-size: calc(2.3 * var(--u)); }
+.instructions li span { font-size: calc(2 * var(--u)); line-height: 1.35; color: #333; }
+.instructions p { margin: 0; font-size: calc(1.7 * var(--u)); color: #555; }
+.instructions button,
+.console .instructions button {
+  align-self: flex-start; border: 0; border-radius: calc(1.2 * var(--u)); cursor: pointer;
+  background: var(--accent); color: #1b1b1b; font: inherit; font-weight: 650;
+  font-size: calc(2.3 * var(--u)); padding: calc(1.4 * var(--u)) calc(3.4 * var(--u));
+}
+@container (orientation: portrait) {
+  .instructions-page { --u: 2cqw; }
+  .instructions ol { grid-template-columns: 1fr; }
+}
+.preview .instructions { pointer-events: none; }
+
 /* ---------- Wizard console ---------- */
 .console {
   min-height: 100%; background: var(--console-bg); color: var(--console-text);
@@ -142,3 +175,6 @@ kbd {
 .console .banner { background: var(--bad); color: #fff; padding: 10px 14px; border-radius: 8px; margin: 12px 0 0; font-weight: 600; }
 .console .tag { float: right; font-size: 0.75rem; color: var(--ok); }
 .console .tag.on { color: var(--accent); font-weight: 600; }
+.preview video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.preview .feed-note { position: absolute; left: 0; right: 0; bottom: 12px; text-align: center; color: #9a9ca5; font-size: 0.85rem; }
+.console button:disabled { opacity: 0.4; cursor: not-allowed; }

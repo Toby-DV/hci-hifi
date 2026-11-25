@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
+import { useShareCamera } from './cameraFeed.js'
+import Instructions from './Instructions.jsx'
 import Overlay from './Overlay.jsx'
 import { useSession } from './useSession.js'
 
@@ -6,11 +8,11 @@ import { useSession } from './useSession.js'
 // cooking clip or the device's live rear camera, full screen, with the overlay
 // on top. Controlled entirely from /console.
 export default function Display() {
-  const { state, connected, report, sendStatus } = useSession('display')
+  const { socket, state, connected, send, report, sendStatus } = useSession('display')
   const [started, setStarted] = useState(false)
   const [failedClip, setFailedClip] = useState(null)
   const [cameraError, setCameraError] = useState(null)
-  const [cameraOn, setCameraOn] = useState(false)
+  const [cameraStream, setCameraStream] = useState(null) // set once it is playing
   const [attempt, setAttempt] = useState(0) // bump to reopen the camera
   const [aspect, setAspect] = useState(() => window.innerWidth / window.innerHeight)
   const videoRef = useRef(null)
@@ -53,7 +55,7 @@ export default function Display() {
         })
         await cameraRef.current.play().catch(() => {})
         if (cancelled) return
-        setCameraOn(true)
+        setCameraStream(stream)
         report({ action: 'camera-on' })
       } catch (err) {
         if (!cancelled) {
@@ -65,7 +67,7 @@ export default function Display() {
     return () => {
       cancelled = true
       setCameraError(null)
-      setCameraOn(false)
+      setCameraStream(null)
       stream?.getTracks().forEach((t) => t.stop())
     }
   }, [useCamera, started, attempt]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -94,11 +96,13 @@ export default function Display() {
     return () => window.removeEventListener('resize', onResize)
   }, [])
 
+  useShareCamera(socket, cameraStream)
+
   // Tell the console how this display is doing.
-  const camera = !useCamera ? 'off' : cameraError ? 'error' : cameraOn ? 'on' : 'starting'
+  const camera = !useCamera ? 'off' : cameraError ? 'error' : cameraStream ? 'on' : 'starting'
   useEffect(() => {
-    if (connected) sendStatus({ started, camera, error: cameraError, aspect })
-  }, [connected, started, camera, cameraError, aspect]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (connected) sendStatus({ started, camera, error: cameraError, aspect, stream: cameraStream?.id })
+  }, [connected, started, camera, cameraError, aspect, cameraStream]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const videoError = video && !useCamera && failedClip === video.clip
 
@@ -153,6 +157,10 @@ export default function Display() {
       )}
 
       <Overlay state={state} />
+
+      {state?.intro && (
+        <Instructions onStart={() => send({ type: 'intro', show: false, by: 'participant' })} />
+      )}
 
       {!connected && <div className="offline">Reconnecting…</div>}
 

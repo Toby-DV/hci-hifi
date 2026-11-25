@@ -10,6 +10,7 @@ import { Server } from 'socket.io'
 const PORT = 3001
 
 const initialState = () => ({
+  intro: true, // instructions are covering the participant's screen
   stage: 'idle', // idle | glance | why | more | heads-up | recap
   momentId: null, // which moment the label/card is about
   position: { x: 50, y: 55 }, // label anchor, % of the display
@@ -36,6 +37,8 @@ function apply(cmd) {
     }
     case 'clear':
       return { ...state, stage: 'idle' }
+    case 'intro':
+      return { ...state, intro: Boolean(cmd.show) }
     case 'position':
       return { ...state, position: cmd.position }
     case 'video':
@@ -68,7 +71,7 @@ function broadcastClients() {
   const counts = { display: 0, console: 0, displays: [] }
   for (const s of io.sockets.sockets.values()) {
     counts[s.data.role] = (counts[s.data.role] ?? 0) + 1
-    if (s.data.role === 'display') counts.displays.push(s.data.status ?? null)
+    if (s.data.role === 'display') counts.displays.push(s.data.status ? { ...s.data.status, id: s.id } : null)
   }
   io.emit('clients', counts)
 }
@@ -92,6 +95,14 @@ io.on('connection', (socket) => {
   socket.on('status', (status) => {
     socket.data.status = status
     broadcastClients()
+  })
+
+  // Set-up messages for the camera feed (src/cameraFeed.js), passed between one
+  // console and one display. Not logged.
+  socket.on('signal', ({ to, ...msg }) => {
+    const target = io.sockets.sockets.get(to)
+    if (!target || target.data.role === socket.data.role) return
+    target.emit('signal', { ...msg, from: socket.id })
   })
 
   socket.on('disconnect', () => {

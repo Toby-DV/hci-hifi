@@ -36,11 +36,14 @@ It can change between networks, so check it each time.
    camera. The page also tries to go full screen, lock to landscape and keep the
    screen awake.
 5. Check the console header says **Relay connected** and **Display ready**.
-6. Press **Reset session** so the screen and recap start empty.
+6. Press **Reset session** so the screen and recap start empty and the
+   instructions are showing.
+7. Check the camera picture appears in the console preview (press **Skip
+   instructions** to see it, then **Show instructions** to bring them back).
 
-Repeat steps 5 and 6 for each participant.
-The console preview shows the labels but not the camera picture,
-so the wizard needs to see the pan directly.
+Repeat steps 5 and 6 for each participant, then hand over the device. The
+participant reads the instructions and presses **Start**. Labels cannot
+be fired until they do, or until you press **Skip instructions**.
 
 ## Running a session
 
@@ -63,16 +66,19 @@ has focus.
   **Back left**. The label stays at that point on the *screen*. It does not
   follow the food if the phone or the pan moves, so prop the phone up and
   reposition the label when needed.
-- **Preview:** matches the shape of the participant's screen. A moment is marked
+- **Preview:** shows the participant's camera with the labels on top, in the shape
+  of their screen. It does not show filmed clips. A moment is marked
   **on screen** while it is showing and **✓ shown** once it is in the recap.
 - **Recap:** lists only moments shown as a glance label since the last reset.
-- **Reset session:** clears the label, its position and the recap. It keeps the
-  camera or clip mode, but goes back to the first clip.
+- **Reset session:** clears the label, its position and the recap, and shows the
+  instructions again. It keeps the camera or clip mode, but goes back to the first
+  clip.
 
 ## Camera and filmed clips
 
 The display starts in **Live camera** mode. Switch under **Video** on the
-console. The app does not record or save the camera picture.
+console. The camera picture is also sent to the console, directly between the
+two devices on the local network. The app does not record or save it.
 
 For **Filmed clip** mode, put video files in `public/clips/`. The expected names
 are listed in `clips` in `src/moments.js`: `onions.mp4`, `garlic.mp4`, `egg.mp4`
@@ -86,8 +92,8 @@ UTC.
 
 - Logs do not say which participant they belong to. Restart `npm run dev` between
   participants to get a separate file for each, and note which is whose.
-- Saving `server/index.js` restarts the relay, which clears the session and starts
-  a new log, so do not edit it during a session.
+- Saving `server/index.js` restarts the relay, which clears the session, shows the
+  instructions and starts a new log, so do not edit it during a session.
 - `logs/` is git-ignored, so back the files up separately.
 
 ## Changing the content
@@ -102,6 +108,7 @@ testing with participants.
 | --- | --- |
 | Phone cannot open the page | Check it is on the same Wi-Fi and the address is current. University Wi-Fi may block devices from reaching each other; try a phone hotspot. Check the laptop's firewall. |
 | "Camera unavailable" | Use `https://`. In Chrome, tap the icon left of the address, then **Permissions**, allow the camera, then press **Try again** on the display. |
+| Preview stuck on "Connecting to camera…" | It retries by itself. If it never connects, the network or laptop firewall is blocking the devices from reaching each other; try a phone hotspot. |
 | "Clip not found" | Add the file to `public/clips/`, or switch to **Live camera**. |
 | "Reconnecting…" or **Relay offline** | Check `npm run dev` is still running. Console presses are ignored until it reconnects, so press again afterwards. |
 | "2 displays connected" | Close the display page on the extra device or tab. |
@@ -114,6 +121,8 @@ testing with participants.
 | `src/Display.jsx` | Participant display, camera and clips |
 | `src/Console.jsx` | Wizard console and shortcuts |
 | `src/Overlay.jsx` | Labels, cards and recap, shared by both screens |
+| `src/Instructions.jsx` | Instructions shown before the task |
+| `src/cameraFeed.js` | Camera picture from the display to the console |
 | `src/moments.js` | Moments, wording and clip names |
 | `src/useSession.js` | Connection to the relay |
 | `server/index.js` | Relay, shared state and logging |

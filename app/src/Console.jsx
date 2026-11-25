@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useCameraFeed } from './cameraFeed.js'
+import Instructions from './Instructions.jsx'
 import Overlay from './Overlay.jsx'
 import { clips, moments } from './moments.js'
 import { useSession } from './useSession.js'
@@ -39,11 +41,25 @@ function displayHealth(clients) {
 // Keyboard: 1–4 pick moment, G/W/M/H/R fire a stage, Esc clears, Space play/pause,
 // arrows nudge the label (Shift for bigger steps).
 export default function Console() {
-  const { state, connected, clients, send } = useSession('console')
+  const { socket, state, connected, clients, send } = useSession('console')
   const [selected, setSelected] = useState(moments[0].id)
 
-  const fire = (stage) => send({ type: 'stage', stage, momentId: selected })
+  // The display whose camera is live, if there is one.
+  const display = clients.displays?.find((d) => d?.camera === 'on') ?? clients.displays?.[0]
+  const feed = useCameraFeed(socket, display?.id, display?.stream)
+  const feedRef = useRef(null)
+  useEffect(() => {
+    if (!feedRef.current) return
+    feedRef.current.srcObject = feed
+    if (feed) feedRef.current.play().catch(() => {})
+  }, [feed])
+
+  // Nothing can be fired behind the instructions, where the participant can't see it.
+  const fire = (stage) => {
+    if (!state?.intro) send({ type: 'stage', stage, momentId: selected })
+  }
   const clear = () => send({ type: 'clear' })
+
   useEffect(() => {
     document.title = 'Wizard console'
   }, [])
@@ -102,7 +118,7 @@ export default function Console() {
   if (!state) return <div className="console loading">Connecting to relay…</div>
 
   const health = displayHealth(clients)
-  const aspect = clients.displays?.[0]?.aspect || 16 / 9
+  const aspect = display?.aspect || 16 / 9
   const liveId = ['idle', 'recap'].includes(state.stage) ? null : state.momentId
 
   return (
@@ -117,6 +133,18 @@ export default function Console() {
       {!connected && (
         <p className="banner">Relay offline. Nothing you press is being sent.</p>
       )}
+
+      <section>
+        <h2>Instructions</h2>
+        <div className="row">
+          <button onClick={() => send({ type: 'intro', show: !state.intro, by: 'wizard' })}>
+            {state.intro ? 'Skip instructions' : 'Show instructions'}
+          </button>
+        </div>
+        {state.intro && (
+          <p className="note">On the participant’s screen now. You can fire labels once they press Start.</p>
+        )}
+      </section>
 
       <section>
         <h2>Moment</h2>
@@ -145,6 +173,7 @@ export default function Console() {
             <button
               key={s.stage}
               className={`fire ${state.stage === s.stage ? 'live' : ''}`}
+              disabled={state.intro}
               onClick={() => fire(s.stage)}
             >
               <kbd>{s.key.toUpperCase()}</kbd> {s.label}
@@ -164,7 +193,14 @@ export default function Console() {
           // Same shape as the participant's screen, so labels land where you click.
           style={{ aspectRatio: aspect, width: `min(100%, 720px, ${60 * aspect}vh)` }}
         >
+          {feed && <video ref={feedRef} muted playsInline autoPlay />}
+          {!feed && state.video.source === 'camera' && (
+            <div className="feed-note">
+              {display?.camera === 'on' ? 'Connecting to camera…' : 'Camera not on yet'}
+            </div>
+          )}
           <Overlay state={state} />
+          {state.intro && <Instructions />}
         </div>
         <div className="row">
           {PRESETS.map((p) => (
@@ -192,7 +228,7 @@ export default function Console() {
           </button>
         </div>
         {state.video.source === 'camera' ? (
-          <p className="note">The display shows its rear camera live. The preview above shows labels only.</p>
+          <p className="note">The display shows its rear camera live, and the preview above shows the same picture.</p>
         ) : (
         <div className="row">
           <select
@@ -214,7 +250,7 @@ export default function Console() {
       <section>
         <button
           className="danger"
-          onClick={() => confirm('Reset the session (clears the screen and recap)?') && send({ type: 'reset' })}
+          onClick={() => confirm('Reset the session? Clears the screen and recap, and shows the instructions again.') && send({ type: 'reset' })}
         >
           Reset session
         </button>

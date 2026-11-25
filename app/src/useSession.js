@@ -32,5 +32,5 @@ export function useSession(role) {
     if (socket.connected) socket.emit('status', status)
   }
 
-  return { state, connected, clients, send, report, sendStatus }
+  return { socket, state, connected, clients, send, report, sendStatus }
 }
